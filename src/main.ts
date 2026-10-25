@@ -8,13 +8,13 @@ import { readGamepad } from './systems/gamepad';
 import { Player } from './characters/player';
 import { checkMissions, getCurrentMission, MISSIONS } from './missions/missions';
 import { createTrafficAgent, updateTraffic, TRACK_WAYPOINTS, type TrafficAgent } from './ai/traffic';
+import { Minimap } from './ui/minimap';
 
 await RAPIER.init();
 
 const FIXED_DT = 1 / 60;
 let accumulator = 0;
 
-// ---------- Three.js ----------
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x6ea8ff);
 scene.fog = new THREE.Fog(0x6ea8ff, 80, 280);
@@ -42,25 +42,14 @@ sun.shadow.camera.top = 80;
 sun.shadow.camera.bottom = -80;
 scene.add(sun);
 
-// ---------- Rapier ----------
 const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
-
-world.createCollider(
-  RAPIER.ColliderDesc.cuboid(150, 0.5, 150)
-    .setTranslation(0, -0.5, 0)
-    .setFriction(0.85)
-);
-const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(300, 300),
-  new THREE.MeshStandardMaterial({ color: 0x3d3d3d, roughness: 0.95 })
-);
+world.createCollider(RAPIER.ColliderDesc.cuboid(150, 0.5, 150).setTranslation(0, -0.5, 0).setFriction(0.85));
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(300, 300), new THREE.MeshStandardMaterial({ color: 0x3d3d3d, roughness: 0.95 }));
 ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
-
 buildTrack(world, scene);
 
-// ---------- Cars ----------
 const cars: ActiveCar[] = [
   createCar(world, scene, PRESETS[0], new THREE.Vector3(0, 2, 0)),
   createCar(world, scene, PRESETS[1], new THREE.Vector3(6, 2, -8)),
@@ -73,7 +62,6 @@ const cars: ActiveCar[] = [
 let activeIndex = 0;
 let driving = true;
 let hasStolen = false;
-
 const trafficAgents: TrafficAgent[] = [];
 
 const player = new Player(world, scene, new THREE.Vector3(2, 2, 2));
@@ -127,6 +115,8 @@ document.body.appendChild(hud);
 const missionHud = document.createElement('div');
 missionHud.style.cssText = `position:absolute;top:12px;right:12px;color:#fff;font:14px/1.4 monospace;background:rgba(0,0,0,0.55);padding:10px 14px;border-radius:6px;pointer-events:none;max-width:280px;`;
 document.body.appendChild(missionHud);
+
+const minimap = new Minimap();
 
 const tmp = new THREE.Vector3();
 const chaseCar = new THREE.Vector3(0, 3.4, 8);
@@ -207,10 +197,20 @@ function animate() {
   updateCamera();
   renderer.render(scene, camera);
 
-  const pos = driving
+  const playerPos = driving
     ? new THREE.Vector3(cars[activeIndex].body.translation().x, 0, cars[activeIndex].body.translation().z)
     : new THREE.Vector3(player.body.translation().x, 0, player.body.translation().z);
-  checkMissions(pos, !driving, hasStolen);
+  const playerQuat = driving ? cars[activeIndex].body.rotation() : player.body.rotation();
+  const playerRotY = 2 * Math.atan2(playerQuat.y, playerQuat.w);
+  const carData = cars.map(c => ({
+    pos: new THREE.Vector3(c.body.translation().x, 0, c.body.translation().z),
+    isActive: driving && c === cars[activeIndex],
+    isTraffic: trafficAgents.some(a => a.car === c),
+  }));
+  const currentMission = getCurrentMission();
+  minimap.update(playerPos, playerRotY, carData, currentMission?.target ?? null);
+
+  checkMissions(playerPos, !driving, hasStolen);
 
   const gp = readGamepad();
   const mode = driving ? `Dirigindo: ${cars[activeIndex].preset.name}` : 'A pé';
