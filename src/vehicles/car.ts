@@ -55,20 +55,63 @@ export function createCar(
   }
 
   const group = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: preset.color, roughness: 0.35, metalness: 0.55 });
   const chassisMesh = new THREE.Mesh(
-    new THREE.BoxGeometry(half.x * 2, half.y * 2, half.z * 2),
-    new THREE.MeshStandardMaterial({ color: preset.color, roughness: 0.4, metalness: 0.5 })
+    new THREE.BoxGeometry(half.x * 2, half.y * 1.4, half.z * 2),
+    bodyMat
   );
+  chassisMesh.position.y = -half.y * 0.15;
   chassisMesh.castShadow = true;
   group.add(chassisMesh);
 
+  const cabin = new THREE.Mesh(
+    new THREE.BoxGeometry(half.x * 1.6, half.y * 0.9, half.z * 1.1),
+    bodyMat
+  );
+  cabin.position.set(0, half.y * 0.55, -half.z * 0.05);
+  cabin.castShadow = true;
+  group.add(cabin);
+
+  const hood = new THREE.Mesh(
+    new THREE.BoxGeometry(half.x * 1.7, half.y * 0.25, half.z * 0.55),
+    bodyMat
+  );
+  hood.position.set(0, -half.y * 0.05, -half.z * 0.65);
+  group.add(hood);
+
+  const glass = new THREE.MeshStandardMaterial({ color: 0x88ccff, roughness: 0.1, metalness: 0.8, transparent: true, opacity: 0.45 });
+  const windshield = new THREE.Mesh(new THREE.PlaneGeometry(half.x * 1.4, half.y * 0.7), glass);
+  windshield.position.set(0, half.y * 0.55, -half.z * 0.58);
+  windshield.rotation.x = -0.35;
+  group.add(windshield);
+
+  const rearWindow = new THREE.Mesh(new THREE.PlaneGeometry(half.x * 1.3, half.y * 0.55), glass);
+  rearWindow.position.set(0, half.y * 0.5, half.z * 0.48);
+  rearWindow.rotation.x = 0.25;
+  group.add(rearWindow);
+
+  const lightMat = new THREE.MeshStandardMaterial({ color: 0xffffee, emissive: 0xffffaa, emissiveIntensity: 0.6 });
+  const tailMat = new THREE.MeshStandardMaterial({ color: 0xff3333, emissive: 0xff0000, emissiveIntensity: 0.4 });
+  for (const side of [-1, 1]) {
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.08), lightMat);
+    head.position.set(side * half.x * 0.7, -half.y * 0.1, -half.z * 0.98);
+    group.add(head);
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.06), tailMat);
+    tail.position.set(side * half.x * 0.65, -half.y * 0.05, half.z * 0.98);
+    group.add(tail);
+  }
+
   const wheels: THREE.Mesh[] = [];
-  const wGeo = new THREE.CylinderGeometry(radius, radius, 0.2, 14);
+  const wGeo = new THREE.CylinderGeometry(radius, radius, 0.22, 16);
   wGeo.rotateZ(Math.PI / 2);
-  const wMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+  const wMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
+  const rimMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.7, roughness: 0.3 });
   for (let i = 0; i < 4; i++) {
     const w = new THREE.Mesh(wGeo, wMat);
     w.castShadow = true;
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.55, radius * 0.55, 0.24, 12), rimMat);
+    rim.rotateZ(Math.PI / 2);
+    w.add(rim);
     group.add(w);
     wheels.push(w);
   }
