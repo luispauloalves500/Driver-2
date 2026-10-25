@@ -7,6 +7,7 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
+    target: 'esnext',
   },
   server: {
     port: 5173,
