@@ -1,9 +1,8 @@
 import { defineConfig } from 'vite';
 
-// Change '/wheelman-four-cities/' to your GitHub repo name if different
-// For user.github.io root, use base: '/'
+// Base path for GitHub Pages: https://luispauloalves500.github.io/wellman/
 export default defineConfig({
-  base: '/wheelman-four-cities/',
+  base: '/wellman/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
