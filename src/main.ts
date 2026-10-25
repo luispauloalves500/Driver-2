@@ -9,6 +9,7 @@ import { Player } from './characters/player';
 import { checkMissions, getCurrentMission, MISSIONS } from './missions/missions';
 import { createTrafficAgent, updateTraffic, TRACK_WAYPOINTS, type TrafficAgent } from './ai/traffic';
 import { Minimap } from './ui/minimap';
+import { EngineAudio } from './systems/audio';
 
 await RAPIER.init();
 
@@ -117,6 +118,15 @@ missionHud.style.cssText = `position:absolute;top:12px;right:12px;color:#fff;fon
 document.body.appendChild(missionHud);
 
 const minimap = new Minimap();
+const audio = new EngineAudio();
+
+const startAudio = () => {
+  audio.start();
+  window.removeEventListener('keydown', startAudio);
+  window.removeEventListener('mousedown', startAudio);
+};
+window.addEventListener('keydown', startAudio);
+window.addEventListener('mousedown', startAudio);
 
 const tmp = new THREE.Vector3();
 const chaseCar = new THREE.Vector3(0, 3.4, 8);
@@ -159,6 +169,10 @@ function step() {
     const rearGrip = hb ? p.rearGripHandbrake : p.grip;
     v.setWheelFrictionSlip(2, rearGrip);
     v.setWheelFrictionSlip(3, rearGrip);
+
+    const speed = Math.abs(v.currentVehicleSpeed()) * 3.6;
+    const throttle = fwd ? 1 : 0;
+    audio.update(speed, throttle, !!hb, steer);
   } else {
     let dx = 0, dz = 0;
     if (keys['KeyW'] || keys['ArrowUp']) dz -= 1;
