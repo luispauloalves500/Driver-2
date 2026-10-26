@@ -37,7 +37,14 @@ export class ShootingSystem {
     return true;
   }
 
-  update(dt: number, world: RAPIER.World, cars: ActiveCar[], onHit: (car: ActiveCar) => void) {
+  update(
+    dt: number,
+    world: RAPIER.World,
+    cars: ActiveCar[],
+    playerPos: THREE.Vector3 | null,
+    onCarHit: (car: ActiveCar) => void,
+    onPlayerHit: (damage: number) => void
+  ) {
     this.cooldown = Math.max(0, this.cooldown - dt);
 
     for (let i = this.bullets.length - 1; i >= 0; i--) {
@@ -46,15 +53,28 @@ export class ShootingSystem {
       b.mesh.position.addScaledVector(b.velocity, dt);
 
       let hit = false;
-      for (const car of cars) {
-        const ct = car.body.translation();
-        const dx = b.mesh.position.x - ct.x;
-        const dz = b.mesh.position.z - ct.z;
-        const dy = b.mesh.position.y - ct.y;
-        if (Math.hypot(dx, dz) < 1.4 && Math.abs(dy) < 1.2) {
-          onHit(car);
+
+      if (playerPos) {
+        const dx = b.mesh.position.x - playerPos.x;
+        const dz = b.mesh.position.z - playerPos.z;
+        const dy = b.mesh.position.y - playerPos.y;
+        if (Math.hypot(dx, dz) < 0.7 && Math.abs(dy) < 1.5) {
+          onPlayerHit(12);
           hit = true;
-          break;
+        }
+      }
+
+      if (!hit) {
+        for (const car of cars) {
+          const ct = car.body.translation();
+          const dx = b.mesh.position.x - ct.x;
+          const dz = b.mesh.position.z - ct.z;
+          const dy = b.mesh.position.y - ct.y;
+          if (Math.hypot(dx, dz) < 1.4 && Math.abs(dy) < 1.2) {
+            onCarHit(car);
+            hit = true;
+            break;
+          }
         }
       }
 
