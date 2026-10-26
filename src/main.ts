@@ -11,6 +11,7 @@ import { createTrafficAgent, updateTraffic, TRACK_WAYPOINTS, type TrafficAgent }
 import { createPoliceAgent, updatePolice, type PoliceAgent } from './ai/police';
 import { Minimap } from './ui/minimap';
 import { EngineAudio } from './systems/audio';
+import { ShootingSystem } from './systems/shooting';
 
 await RAPIER.init();
 
@@ -128,6 +129,7 @@ document.body.appendChild(missionHud);
 
 const minimap = new Minimap();
 const audio = new EngineAudio();
+const shooting = new ShootingSystem(scene);
 
 const startAudio = () => {
   audio.start();
@@ -182,7 +184,7 @@ function step() {
     const speed = Math.abs(v.currentVehicleSpeed()) * 3.6;
     const throttle = fwd ? 1 : 0;
     audio.update(speed, throttle, !!hb, steer);
-  } else {
+  } else if (!player.isDead) {
     let dx = 0, dz = 0;
     if (keys['KeyW'] || keys['ArrowUp']) dz -= 1;
     if (keys['KeyS'] || keys['ArrowDown']) dz += 1;
@@ -193,7 +195,21 @@ function step() {
     const len = Math.hypot(dx, dz);
     if (len > 1) { dx /= len; dz /= len; }
     player.move(dx, dz);
+
+    if (keys['KeyF'] || gp.b || gp.rb) {
+      const t = player.body.translation();
+      const r = player.body.rotation();
+      const q = new THREE.Quaternion(r.x, r.y, r.z, r.w);
+      const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
+      const origin = new THREE.Vector3(t.x, t.y + 1.4, t.z).addScaledVector(dir, 0.6);
+      shooting.tryShoot(origin, dir, performance.now());
+    }
   }
+
+  shooting.update(FIXED_DT, world, cars, (hitCar) => {
+    const v = hitCar.body.linvel();
+    hitCar.body.setLinvel({ x: v.x * 0.7, y: v.y, z: v.z * 0.7 }, true);
+  });
 
   cars.forEach(c => {
     if (driving && c === cars[activeIndex]) return;
@@ -246,10 +262,10 @@ function animate() {
   checkMissions(playerPos, !driving, hasStolen);
 
   const gp = readGamepad();
-  const mode = driving ? `Dirigindo: ${cars[activeIndex].preset.name}` : 'A pé';
+  const mode = driving ? `Dirigindo: ${cars[activeIndex].preset.name}` : (player.isDead ? 'MORTO' : 'A pé');
   const speed = driving ? Math.abs(cars[activeIndex].vehicle.currentVehicleSpeed()) * 3.6 : 0;
   const contacts = driving ? [0,1,2,3].map(i => cars[activeIndex].vehicle.wheelIsInContact(i) ? '●' : '○').join(' ') : '';
-  hud.textContent = `UNDERCOVER WHEELMAN\n${mode}\n` + (driving ? `Velocidade: ${speed.toFixed(0)} km/h\nContato: ${contacts}\n` : '') + `Tráfego IA: ${trafficAgents.length} carros\nPolícia: ${policeAgents.length} | Wanted: ${wantedLevel}\nGamepad: ${gp.connected ? 'conectado' : 'não'}\nFPS: ${Math.round(1/Math.max(dt,0.001))}\n\nE = sair | F = entrar\nGamepad: Y = sair | X = entrar | A = handbrake`;
+  hud.textContent = `UNDERCOVER WHEELMAN\n${mode}\nVida: ${player.health}/${player.maxHealth}\n` + (driving ? `Velocidade: ${speed.toFixed(0)} km/h\nContato: ${contacts}\n` : '') + `Tráfego IA: ${trafficAgents.length} carros\nPolícia: ${policeAgents.length} | Wanted: ${wantedLevel}\nGamepad: ${gp.connected ? 'conectado' : 'não'}\nFPS: ${Math.round(1/Math.max(dt,0.001))}\n\nE = sair | F = entrar / atirar\nGamepad: Y = sair | X = entrar | A = handbrake | B = atirar`;
 
   const current = getCurrentMission();
   const done = MISSIONS.filter(m => m.completed).length;
