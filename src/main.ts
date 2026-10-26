@@ -9,6 +9,7 @@ import { Player } from './characters/player';
 import { checkMissions, getCurrentMission, MISSIONS } from './missions/missions';
 import { createTrafficAgent, updateTraffic, TRACK_WAYPOINTS, type TrafficAgent } from './ai/traffic';
 import { createPoliceAgent, updatePolice, type PoliceAgent } from './ai/police';
+import { createEnemy, updateEnemy, type Enemy } from './ai/enemies';
 import { Minimap } from './ui/minimap';
 import { EngineAudio } from './systems/audio';
 import { ShootingSystem } from './systems/shooting';
@@ -68,6 +69,7 @@ let hasStolen = false;
 let wantedLevel = 0;
 const trafficAgents: TrafficAgent[] = [];
 const policeAgents: PoliceAgent[] = [];
+const enemies: Enemy[] = [];
 
 const player = new Player(world, scene, new THREE.Vector3(2, 2, 2));
 player.setOnFoot(false);
@@ -81,6 +83,10 @@ for (let i = 2; i < cars.length - 1; i++) {
 
 const policeCar = cars[cars.length - 1];
 policeAgents.push(createPoliceAgent(policeCar, 0.9));
+
+enemies.push(createEnemy(world, scene, new THREE.Vector3(25, 2, 10)));
+enemies.push(createEnemy(world, scene, new THREE.Vector3(-18, 2, -25)));
+enemies.push(createEnemy(world, scene, new THREE.Vector3(8, 2, 35)));
 
 setupInput((action) => {
   if (action === 'exit' && driving) exitCar();
@@ -206,10 +212,23 @@ function step() {
     }
   }
 
-  shooting.update(FIXED_DT, world, cars, (hitCar) => {
-    const v = hitCar.body.linvel();
-    hitCar.body.setLinvel({ x: v.x * 0.7, y: v.y, z: v.z * 0.7 }, true);
-  });
+  const pPos = driving
+    ? new THREE.Vector3(cars[activeIndex].body.translation().x, 0, cars[activeIndex].body.translation().z)
+    : new THREE.Vector3(player.body.translation().x, 0, player.body.translation().z);
+
+  shooting.update(
+    FIXED_DT,
+    world,
+    cars,
+    driving ? null : new THREE.Vector3(player.body.translation().x, player.body.translation().y, player.body.translation().z),
+    (hitCar) => {
+      const v = hitCar.body.linvel();
+      hitCar.body.setLinvel({ x: v.x * 0.7, y: v.y, z: v.z * 0.7 }, true);
+    },
+    (damage) => player.takeDamage(damage)
+  );
+
+  enemies.forEach(e => updateEnemy(e, pPos, !driving, shooting, FIXED_DT));
 
   cars.forEach(c => {
     if (driving && c === cars[activeIndex]) return;
@@ -218,9 +237,6 @@ function step() {
 
     const police = policeAgents.find(a => a.car === c);
     if (police) {
-      const pPos = driving
-        ? new THREE.Vector3(cars[activeIndex].body.translation().x, 0, cars[activeIndex].body.translation().z)
-        : new THREE.Vector3(player.body.translation().x, 0, player.body.translation().z);
       const pSpeed = driving ? Math.abs(cars[activeIndex].vehicle.currentVehicleSpeed()) : 0;
       updatePolice(police, pPos, pSpeed, wantedLevel, FIXED_DT);
     }
@@ -265,7 +281,7 @@ function animate() {
   const mode = driving ? `Dirigindo: ${cars[activeIndex].preset.name}` : (player.isDead ? 'MORTO' : 'A pé');
   const speed = driving ? Math.abs(cars[activeIndex].vehicle.currentVehicleSpeed()) * 3.6 : 0;
   const contacts = driving ? [0,1,2,3].map(i => cars[activeIndex].vehicle.wheelIsInContact(i) ? '●' : '○').join(' ') : '';
-  hud.textContent = `UNDERCOVER WHEELMAN\n${mode}\nVida: ${player.health}/${player.maxHealth}\n` + (driving ? `Velocidade: ${speed.toFixed(0)} km/h\nContato: ${contacts}\n` : '') + `Tráfego IA: ${trafficAgents.length} carros\nPolícia: ${policeAgents.length} | Wanted: ${wantedLevel}\nGamepad: ${gp.connected ? 'conectado' : 'não'}\nFPS: ${Math.round(1/Math.max(dt,0.001))}\n\nE = sair | F = entrar / atirar\nGamepad: Y = sair | X = entrar | A = handbrake | B = atirar`;
+  hud.textContent = `UNDERCOVER WHEELMAN\n${mode}\nVida: ${player.health}/${player.maxHealth}\n` + (driving ? `Velocidade: ${speed.toFixed(0)} km/h\nContato: ${contacts}\n` : '') + `Tráfego IA: ${trafficAgents.length} carros\nPolícia: ${policeAgents.length} | Wanted: ${wantedLevel}\nInimigos: ${enemies.filter(e => e.health > 0).length}\nGamepad: ${gp.connected ? 'conectado' : 'não'}\nFPS: ${Math.round(1/Math.max(dt,0.001))}\n\nE = sair | F = entrar / atirar\nGamepad: Y = sair | X = entrar | A = handbrake | B = atirar`;
 
   const current = getCurrentMission();
   const done = MISSIONS.filter(m => m.completed).length;
