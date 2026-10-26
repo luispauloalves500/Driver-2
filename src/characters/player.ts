@@ -6,6 +6,9 @@ export class Player {
   body: RAPIER.RigidBody;
   onFoot = false;
   speed = 6;
+  health = 100;
+  maxHealth = 100;
+  isDead = false;
 
   constructor(world: RAPIER.World, scene: THREE.Scene, spawn: THREE.Vector3) {
     const group = new THREE.Group();
@@ -60,7 +63,7 @@ export class Player {
   }
 
   move(dirX: number, dirZ: number) {
-    if (!this.onFoot) return;
+    if (!this.onFoot || this.isDead) return;
     const vel = this.body.linvel();
     this.body.setLinvel(
       { x: dirX * this.speed, y: vel.y, z: dirZ * this.speed },
@@ -70,5 +73,26 @@ export class Player {
       const angle = Math.atan2(dirX, dirZ);
       this.body.setRotation({ x: 0, y: Math.sin(angle / 2), z: 0, w: Math.cos(angle / 2) }, true);
     }
+  }
+
+  takeDamage(amount: number) {
+    if (this.isDead) return;
+    this.health = Math.max(0, this.health - amount);
+    if (this.health <= 0) {
+      this.isDead = true;
+      this.health = 0;
+    }
+  }
+
+  heal(amount: number) {
+    if (this.isDead) return;
+    this.health = Math.min(this.maxHealth, this.health + amount);
+  }
+
+  respawn(pos: THREE.Vector3) {
+    this.health = this.maxHealth;
+    this.isDead = false;
+    this.body.setTranslation({ x: pos.x, y: pos.y, z: pos.z }, true);
+    this.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
   }
 }
