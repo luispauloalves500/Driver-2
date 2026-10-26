@@ -8,6 +8,7 @@ import { readGamepad } from './systems/gamepad';
 import { Player } from './characters/player';
 import { checkMissions, getCurrentMission, MISSIONS } from './missions/missions';
 import { createTrafficAgent, updateTraffic, TRACK_WAYPOINTS, type TrafficAgent } from './ai/traffic';
+import { createPoliceAgent, updatePolice, type PoliceAgent } from './ai/police';
 import { Minimap } from './ui/minimap';
 import { EngineAudio } from './systems/audio';
 
@@ -63,17 +64,22 @@ const cars: ActiveCar[] = [
 let activeIndex = 0;
 let driving = true;
 let hasStolen = false;
+let wantedLevel = 0;
 const trafficAgents: TrafficAgent[] = [];
+const policeAgents: PoliceAgent[] = [];
 
 const player = new Player(world, scene, new THREE.Vector3(2, 2, 2));
 player.setOnFoot(false);
 
-for (let i = 2; i < cars.length; i++) {
+for (let i = 2; i < cars.length - 1; i++) {
   const speed = 9 + Math.random() * 6;
   const agent = createTrafficAgent(cars[i], TRACK_WAYPOINTS, speed, 0.55 + Math.random() * 0.3);
   agent.currentWp = Math.floor(Math.random() * TRACK_WAYPOINTS.length);
   trafficAgents.push(agent);
 }
+
+const policeCar = cars[cars.length - 1];
+policeAgents.push(createPoliceAgent(policeCar, 0.9));
 
 setupInput((action) => {
   if (action === 'exit' && driving) exitCar();
@@ -105,7 +111,10 @@ function enterNearestCar() {
     activeIndex = cars.indexOf(best);
     player.setOnFoot(false);
     driving = true;
-    if (activeIndex !== 0) hasStolen = true;
+    if (activeIndex !== 0) {
+      hasStolen = true;
+      wantedLevel = Math.min(3, wantedLevel + 1);
+    }
   }
 }
 
@@ -188,8 +197,18 @@ function step() {
 
   cars.forEach(c => {
     if (driving && c === cars[activeIndex]) return;
-    const agent = trafficAgents.find(a => a.car === c);
-    if (agent) updateTraffic(agent, FIXED_DT);
+    const traffic = trafficAgents.find(a => a.car === c);
+    if (traffic) updateTraffic(traffic, FIXED_DT);
+
+    const police = policeAgents.find(a => a.car === c);
+    if (police) {
+      const pPos = driving
+        ? new THREE.Vector3(cars[activeIndex].body.translation().x, 0, cars[activeIndex].body.translation().z)
+        : new THREE.Vector3(player.body.translation().x, 0, player.body.translation().z);
+      const pSpeed = driving ? Math.abs(cars[activeIndex].vehicle.currentVehicleSpeed()) : 0;
+      updatePolice(police, pPos, pSpeed, wantedLevel, FIXED_DT);
+    }
+
     c.vehicle.updateVehicle(FIXED_DT, RAPIER.QueryFilterFlags.EXCLUDE_DYNAMIC);
   });
   world.step();
@@ -230,7 +249,7 @@ function animate() {
   const mode = driving ? `Dirigindo: ${cars[activeIndex].preset.name}` : 'A pé';
   const speed = driving ? Math.abs(cars[activeIndex].vehicle.currentVehicleSpeed()) * 3.6 : 0;
   const contacts = driving ? [0,1,2,3].map(i => cars[activeIndex].vehicle.wheelIsInContact(i) ? '●' : '○').join(' ') : '';
-  hud.textContent = `UNDERCOVER WHEELMAN\n${mode}\n` + (driving ? `Velocidade: ${speed.toFixed(0)} km/h\nContato: ${contacts}\n` : '') + `Tráfego IA: ${trafficAgents.length} carros\nGamepad: ${gp.connected ? 'conectado' : 'não'}\nFPS: ${Math.round(1/Math.max(dt,0.001))}\n\nE = sair | F = entrar\nGamepad: Y = sair | X = entrar | A = handbrake`;
+  hud.textContent = `UNDERCOVER WHEELMAN\n${mode}\n` + (driving ? `Velocidade: ${speed.toFixed(0)} km/h\nContato: ${contacts}\n` : '') + `Tráfego IA: ${trafficAgents.length} carros\nPolícia: ${policeAgents.length} | Wanted: ${wantedLevel}\nGamepad: ${gp.connected ? 'conectado' : 'não'}\nFPS: ${Math.round(1/Math.max(dt,0.001))}\n\nE = sair | F = entrar\nGamepad: Y = sair | X = entrar | A = handbrake`;
 
   const current = getCurrentMission();
   const done = MISSIONS.filter(m => m.completed).length;
