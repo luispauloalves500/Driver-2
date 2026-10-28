@@ -1,0 +1,607 @@
+
+        * { user-select: none; -webkit-user-select: none; box-sizing: border-box; }
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background-color: #0b0e14;
+            font-family: 'Chakra Petch', sans-serif;
+            color: #f1f5f9;
+        }
+        #game-canvas {
+            width: 100vw; height: 100vh; display: block;
+        }
+        /* Efeito PS1 Scanlines sutis opcionais */
+        .ps1-scanlines {
+            background: linear-gradient(
+                rgba(18, 16, 16, 0) 50%, 
+                rgba(0, 0, 0, 0.22) 50%
+            ), linear-gradient(
+                90deg,
+                rgba(255, 0, 0, 0.03),
+                rgba(0, 255, 0, 0.01),
+                rgba(0, 0, 255, 0.03)
+            );
+            background-size: 100% 3px, 6px 100%;
+            pointer-events: none;
+        }
+        /* Estilo clássico das barras de Damage e Felony do Driver 2 */
+        .driver-bar-bg {
+            background: rgba(10, 12, 18, 0.85);
+            border: 2px solid #94a3b8;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7), inset 0 0 8px rgba(0,0,0,0.9);
+        }
+        .felony-flash {
+            animation: felonyPulse 0.35s infinite alternate;
+        }
+        @keyframes felonyPulse {
+            from { background-color: #ef4444; box-shadow: 0 0 10px #ef4444; }
+            to { background-color: #3b82f6; box-shadow: 0 0 10px #3b82f6; }
+        }
+        /* Radar circular clássico */
+        #radar-container {
+            width: 150px; height: 150px;
+            border-radius: 50%;
+            border: 4px solid #cbd5e1;
+            box-shadow: 0 0 20px rgba(0,0,0,0.85), inset 0 0 15px rgba(0,0,0,0.9);
+            overflow: hidden;
+            background: #111827;
+            position: relative;
+        }
+        @media (max-width: 640px) {
+            #radar-container { width: 115px; height: 115px; }
+        }
+        /* Scrollbar customizada para o visualizador de arquivos */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    
+/* Revisão mobile: estado da missão legível sem ocupar metade da tela */
+#mission-compact-progress, #btn-objective-toggle, #btn-hud-more { display: none; }
+#impact-flash {
+    position: fixed; inset: 0; z-index: 18; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 30%, rgba(251, 146, 60, 0.6) 100%);
+    opacity: 0;
+}
+.roadblock-warning:not(.hidden) {
+    display: block; margin-top: 6px; max-width: min(92vw, 340px);
+    padding: 5px 12px; border: 1px solid #f97316; border-radius: 8px;
+    font: 700 12px 'Chakra Petch', sans-serif; letter-spacing: .04em;
+    text-align: center; background: rgba(67, 20, 7, .94); color: #ffedd5;
+    box-shadow: 0 3px 18px rgba(0, 0, 0, .55);
+}
+@media (max-width: 767px) {
+    #hud-layer { padding: max(5px, env(safe-area-inset-top)) 6px max(6px, env(safe-area-inset-bottom)); }
+    #hud-top-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 5px; row-gap: 5px; }
+    #hud-player-panel {
+        grid-column: 1; grid-row: 1; width: min(100%, 205px);
+        padding: 7px; gap: 3px;
+    }
+    #hud-top-row > :last-child { grid-column: 2; grid-row: 1; max-width: 43vw; gap: 3px; }
+    #hud-top-row > :last-child > div:first-child { gap: 3px; }
+    #hud-top-row > :last-child button { padding: 4px 6px; min-height: 29px; font-size: 10px; }
+    #mission-center { grid-column: 1 / -1; grid-row: 2; width: 100%; }
+    #mission-header { padding: 3px 8px; max-width: 94vw; }
+    #mission-title { font-size: 11px; line-height: 1.2; }
+    #mission-timer { font-size: 18px; line-height: 1.1; }
+    #mission-subcounter { font-size: 10px; overflow-wrap: anywhere; }
+    #mission-compact-progress {
+        display: block; color: #67e8f9; font-size: 10px;
+        font-weight: 800; letter-spacing: .08em;
+    }
+    #objective-banner {
+        display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+        max-width: 94vw; margin-top: 3px; padding: 3px 7px;
+        font-size: 11px; line-height: 1.35; overflow: hidden;
+    }
+    #mission-center.objective-expanded #objective-banner {
+        display: block; overflow-y: auto; max-height: 26vh;
+    }
+    #btn-objective-toggle, #btn-hud-more {
+        display: inline-block; pointer-events: auto;
+        background: rgba(15, 23, 42, .93); color: #cbd5e1;
+        border: 1px solid #64748b; border-radius: 6px;
+        padding: 3px 8px; font-size: 10px; font-weight: 700;
+    }
+    #btn-objective-toggle { margin-top: 3px; }
+    #hud-player-panel .hud-extra-controls { display: none; }
+    #hud-player-panel.hud-expanded .hud-extra-controls { display: block; }
+    .roadblock-warning:not(.hidden) { font-size: 10px; padding: 3px 7px; margin-top: 3px; }
+}
+@media (max-width: 420px) {
+    #radar-container { width: 94px; height: 94px; }
+    #hud-top-row > :last-child { max-width: 46vw; }
+    #hud-player-panel { width: min(100%, 175px); }
+    #mission-header { max-width: 94vw; }
+}
+@media (prefers-reduced-motion: reduce) {
+    #impact-flash { display: none; }
+}
+
+#interior-banner.hidden{display:none;}
+@media(max-width:640px){
+    #interior-banner{max-width:92vw;padding:6px;font-size:11px;}
+    #interior-banner button{min-height:36px;}
+}
+
+@media(max-width:640px){#btn-radar-zoom{max-width:72px;line-height:1.1;padding:8px 5px;}}
+
+/* Barra de proximidade da quarta missão Undercover (zona verde central). */
+.tail-spectrum { background:linear-gradient(90deg,
+    #dc2626 0%,#dc2626 11.5%,#f97316 13%,
+    #facc15 15%,#22c55e 17%,#16a34a 71%,
+    #eab308 72%,#f97316 75%,#dc2626 97%);
+}
+#tail-needle { transform:translateX(-50%);z-index:1; }
+.tail-zone-green {color:#4ade80}
+.tail-zone-close,.tail-zone-far {color:#fb923c}
+#tail-proximity.hidden {display:none}
+@media(max-width:767px) {
+    #tail-proximity {width:min(240px,90vw);padding:4px 7px;font-size:10px;}
+}
+
+#safehouse-escape-progress.hidden{display:none;}
+@media(max-width:767px){#safehouse-escape-progress{width:min(240px,90vw);padding:5px 7px;}}
+
+#intruder-chase-progress.hidden{display:none;}
+@media(max-width:767px){#intruder-chase-progress{width:min(240px,90vw);padding:5px 7px;}}
+
+#caine-escape-progress.hidden{display:none;}
+@media(max-width:767px){#caine-escape-progress{width:min(240px,90vw);padding:5px 7px;}}
+
+#leaving-chicago-progress.hidden{display:none;}
+@media(max-width:767px){#leaving-chicago-progress{width:min(240px,90vw);padding:5px 7px;}}
+
+/* Driver 2 — menu principal e carregamento de cidades (sem imagens remotas). */
+#driver-main-menu, #driver-loading {
+    position:fixed;inset:0;z-index:110;overflow-y:auto;
+    color:#f8fafc;font-family:'Chakra Petch',sans-serif;
+}
+#driver-main-menu.hidden,#driver-loading.hidden,
+#driver-main-menu .hidden,#driver-loading .hidden {display:none!important;}
+#driver-main-menu:not(.hidden) {
+    display:flex;flex-direction:column;justify-content:center;
+    background:#090d12;
+}
+.d2-menu-backdrop{position:absolute;inset:0;overflow:hidden;pointer-events:none;
+    background:
+    radial-gradient(ellipse 40% 35% at 75% 35%,#9d451b78,transparent 80%),
+    linear-gradient(170deg,#242d38 2%,#17202c 35%,#080c11 70%);}
+.d2-menu-backdrop:after{content:"";position:absolute;inset:0;
+    background:repeating-linear-gradient(0deg,transparent 0 3px,#0003 4px 5px);
+    opacity:.42}
+.d2-horizon{position:absolute;bottom:28%;left:-10%;width:120%;height:24%;
+    background:repeating-linear-gradient(90deg,#101a25 0 5%,#25313d 5.2% 6.5%,#111a24 7% 10%);
+    opacity:.9;clip-path:polygon(0 55%,8% 55%,8% 25%,14% 25%,14% 47%,
+    22% 47%,22% 9%,30% 9%,30% 40%,40% 40%,40% 21%,48% 21%,
+    48% 50%,59% 50%,59% 12%,69% 12%,69% 39%,76% 39%,
+    76% 22%,86% 22%,86% 45%,100% 45%,100% 100%,0 100%)}
+.d2-road{position:absolute;bottom:-20%;left:-15%;width:130%;height:55%;
+    background:linear-gradient(178deg,#1b2630 0%,#11171e 32%,#060809 100%);
+    transform:skewY(-6deg);border-top:4px solid #a7764350;}
+.d2-road:before{content:"";position:absolute;left:48%;width:3px;height:100%;
+    background:repeating-linear-gradient(to bottom,#d0af70 0 28px,transparent 28px 65px);
+    transform:rotate(18deg)}
+.d2-car-shape{position:absolute;right:9%;bottom:12%;width:min(42vw,460px);
+    height:min(15vw,150px);background:#030506bb;border:1px solid #4b2928;
+    border-radius:43% 48% 15% 15%;transform:skewX(-9deg);
+    box-shadow:0 12px 70px #000e;}
+.d2-car-shape:before{content:"";position:absolute;top:-38%;left:25%;width:51%;height:58%;
+    border-radius:50% 65% 0 0;background:linear-gradient(#07111d,#151c24);
+    border:2px solid #202d38}
+.d2-car-shape:after{content:"";position:absolute;left:10%;top:75%;width:17%;
+    height:47%;background:#070707;border:5px solid #28303b;border-radius:50%;
+    box-shadow:280px 0 0 -2px #070707,280px 0 0 3px #28303b;}
+.d2-car-shape span{position:absolute;right:2%;top:45%;width:11%;height:12%;
+    background:#ffe0a2;box-shadow:0 0 35px 16px #f2b26a75;transform:skewX(10deg);}
+.d2-menu-layout{position:relative;z-index:1;width:min(1140px,95vw);margin:auto;
+    display:grid;grid-template-columns:minmax(280px,1.2fr) minmax(265px,.8fr);
+    grid-template-rows:auto 1fr;column-gap:clamp(16px,5vw,80px);
+    row-gap:clamp(12px,3vh,30px);align-items:start;padding:32px 14px;}
+.d2-brand{grid-column:1/-1;text-shadow:0 5px 25px #000;}
+.d2-eyebrow{font-size:clamp(10px,1vw,14px);color:#e2b474;letter-spacing:.29em;font-weight:800}
+.d2-brand h1{font-family:'Chakra Petch',sans-serif;font-size:clamp(64px,10vw,142px);
+    line-height:1.01;letter-spacing:-.09em;margin:6px 0 0;font-style:italic;
+    font-weight:900;text-shadow:6px 7px 0 #05070b,0 0 55px #111b30;}
+.d2-brand h1 em{font-style:italic;color:#e5b566;text-shadow:4px 5px 0 #572914;}
+.d2-tagline{font-size:clamp(11px,1.35vw,15px);letter-spacing:.21em;font-weight:800;
+    color:#cbd5e1;margin-top:9px}
+.d2-menu-panel{display:flex;flex-direction:column;gap:5px;width:min(100%,540px);}
+.d2-menu-heading{font-size:12px;color:#e7bd7c;font-weight:800;
+    letter-spacing:.3em;margin-bottom:12px}
+.d2-menu-choice{width:100%;display:grid;grid-template-columns:36px 1fr auto;
+    gap:8px;align-items:center;text-align:left;padding:10px 13px;
+    background:#060a10c7;border:1px solid #64748b55;color:#eee;
+    border-left:4px solid #475569;min-height:60px;cursor:pointer;
+    transition:background .18s,border-color .18s,transform .18s;}
+.d2-menu-choice>span{font-size:15px;color:#8a9aab}
+.d2-menu-choice strong{font-size:clamp(15px,2vw,21px);letter-spacing:.075em}
+.d2-menu-choice small{text-align:right;color:#93a1b5;font-size:11px;}
+.d2-menu-choice:hover:not(:disabled),.d2-menu-choice:focus-visible{
+    background:#352818ed;border-color:#edbe72;border-left-color:#f6cb80;
+    transform:translateX(5px);outline:0;}
+.d2-menu-choice:disabled{opacity:.45;cursor:not-allowed}
+.d2-menu-choice.d2-primary{border-left-color:#e6ae54;background:#422a16bf;}
+.d2-resume{padding:12px 18px;background:#d6a55a;color:#111827;
+    font-weight:900;letter-spacing:.13em;border-radius:5px;cursor:pointer;margin-top:9px}
+.d2-resume:hover{background:#f8d38a}
+.d2-city-panel{background:#060b13c9;border:1px solid #68748577;
+    border-top:3px solid #d7a860;padding:22px;backdrop-filter:blur(8px);}
+.d2-cities{display:grid;gap:8px}
+.d2-city{font:800 17px 'Chakra Petch',sans-serif;color:#d6deea;display:flex;
+    align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;
+    border:1px solid #51607369;background:#0e1620ce;cursor:pointer;text-align:left}
+.d2-city span{font-size:10px;letter-spacing:.1em;color:#8b9bac}
+.d2-city.selected,.d2-city:hover,.d2-city:focus-visible{
+    border-color:#e5b775;color:#ffd88b;background:#57381e9c;outline:0}
+#d2-city-hint{font-size:12px;color:#bdc6d3;margin-top:14px;line-height:1.6}
+.d2-options{border-top:1px solid #334155;margin-top:18px;padding-top:12px;
+    display:flex;flex-direction:column;gap:13px;font-size:13px}
+.d2-options label{display:flex;align-items:center;gap:9px;cursor:pointer}
+.d2-options input{accent-color:#fbbf24;width:16px;height:16px}
+.d2-menu-footer{z-index:1;position:relative;text-align:center;font-size:10px;
+    color:#b1bbc8;letter-spacing:.13em;padding:10px;margin:0}
+#driver-loading:not(.hidden){display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(130deg,#070b10,#192536 48%,#070b10);}
+#driver-loading:after{content:"";pointer-events:none;position:absolute;inset:0;
+    background:repeating-linear-gradient(0deg,transparent 0 3px,#0003 4px 5px)}
+.d2-loading-panel{position:relative;z-index:1;width:min(90vw,650px);
+    padding:clamp(22px,5vw,48px);background:#080e17ea;
+    border-top:4px solid #d9ab65;border-bottom:1px solid #6b7280;
+    box-shadow:0 10px 80px #000c;}
+.d2-loading-panel h2{font-size:clamp(28px,5vw,53px);font-weight:900;
+    font-style:italic;letter-spacing:.07em;margin:14px 0 28px}
+.d2-progress-outer{height:18px;border:2px solid #738292;background:#080b10;
+    padding:2px;overflow:hidden}
+#d2-progress-fill{height:100%;width:0;background:linear-gradient(90deg,#b77b37,#ffd78e);
+    transition:width .12s linear}
+.d2-progress-detail{display:flex;justify-content:space-between;gap:15px;
+    margin-top:12px;color:#cbd5e1;font-size:13px;line-height:1.4}
+#d2-load-percent{font-size:20px;color:#ffcc80}
+.d2-load-note{font-size:12px;margin-top:26px;color:#97a6b8;line-height:1.5}
+.d2-reduced-motion #driver-main-menu *, .d2-reduced-motion #driver-loading * {
+    transition:none!important;animation:none!important
+}
+@media(max-width:760px){
+    #driver-main-menu:not(.hidden){justify-content:flex-start}
+    .d2-menu-layout{display:flex;flex-direction:column;gap:24px;padding:25px 8px;
+        width:min(94vw,500px);margin:0 auto}
+    .d2-brand h1{font-size:clamp(66px,16vw,106px)}
+    .d2-menu-panel,.d2-city-panel{width:100%}
+    .d2-city-panel{padding:15px}
+    .d2-menu-choice{min-height:53px;grid-template-columns:25px 1fr auto;padding:7px 10px}
+    .d2-menu-choice small{font-size:10px;max-width:105px}
+    .d2-car-shape{right:-16%;bottom:10%;width:78vw;height:21vw;opacity:.28}
+    .d2-menu-footer{font-size:9px;padding-bottom:20px}
+}
+@media(prefers-reduced-motion:reduce){#driver-main-menu *,
+    #driver-loading *{transition:none!important;animation:none!important}}
+
+/* Importação do carro GLB otimizado e cor individual, responsiva. */
+.d2-car-import-panel {
+    display:flex;flex-direction:column;gap:10px;
+    border:1px solid rgba(245,158,11,.48);border-radius:6px;
+    padding:13px 14px;margin-top:14px;background:rgba(12,18,26,.94);
+    color:#e2e8f0;
+}
+.d2-car-import-panel strong {font-size:13px;color:#fbbf74;letter-spacing:.12em}
+.d2-car-import-panel .d2-resume {margin:0;font-size:12px}
+.d2-car-import-panel label {display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px}
+.d2-car-import-panel small {color:#9daec3;line-height:1.45;font-size:11px}
+#driver-car-file {display:none!important}
+[data-driver-paint] {border:0;width:42px;height:30px;cursor:pointer;background:transparent}
+@media(max-width:767px) {.d2-car-import-panel{padding:11px}.d2-car-import-panel .d2-resume{padding:11px}}
+
+
+/* REV HUD minimalista: só MENU no topo durante a condução.
+   Acessibilidade/ações seguem disponíveis pelo menu de pausa. */
+#hud-player-panel,
+#hud-top-row > :last-child > div:nth-child(2),
+#hud-layer .driver-controls-guide,
+#hud-layer #btn-hud-more {
+    display:none!important;
+}
+#hud-top-row {
+    display:flex!important;
+    justify-content:flex-end!important;
+    align-items:flex-start!important;
+}
+#hud-top-row > :last-child {
+    display:flex!important;
+    grid-column:auto!important;
+    grid-row:auto!important;
+    max-width:none!important;
+}
+#hud-top-row > :last-child > div:first-child {
+    display:flex!important;
+    justify-content:flex-end!important;
+    width:auto!important;
+}
+#hud-top-row > :last-child > div:first-child > :not(#btn-main-menu) {
+    display:none!important;
+}
+#btn-main-menu {
+    display:inline-flex!important;
+    align-items:center;
+    min-height:38px;
+    padding:8px 16px!important;
+    font-weight:800;
+    font-size:12px!important;
+    background:rgba(10,15,28,.88);
+    border:1px solid #f59e0b;
+}
+#mission-center {
+    position:fixed!important;
+    top:auto!important;
+    bottom:118px!important;
+    left:50%!important;
+    right:auto!important;
+    transform:translateX(-50%);
+    width:min(94vw,410px)!important;
+    grid-column:auto!important;
+    grid-row:auto!important;
+    pointer-events:none;
+    z-index:22;
+}
+#mission-center > :not(#interaction-prompt):not(#interior-banner):not(#director-banner):not(#roadblock-warning) {
+    display:none!important;
+}
+#center-announcement {display:none!important;}
+#driver-mission-toast,#driver-mission-context {
+    position:fixed;
+    left:50%;
+    transform:translateX(-50%);
+    max-width:min(92vw,520px);
+    width:max-content;
+    text-align:center;
+    background:rgba(6,12,23,.83);
+    border:1px solid rgba(245,158,11,.50);
+    border-radius:8px;
+    padding:8px 12px;
+    color:#fde68a;
+    font-size:12px;
+    font-weight:700;
+    line-height:1.5;
+    text-shadow:0 1px 2px #000;
+    pointer-events:none;
+    z-index:30;
+}
+#driver-mission-toast {bottom:180px;}
+#driver-mission-context {
+    bottom:92px;
+    font-size:11px;
+    color:#e2e8f0;
+    border-color:rgba(148,163,184,.4);
+}
+#driver-mission-toast.hidden,#driver-mission-context.hidden {display:none!important;}
+#d2-game-controls button {
+    min-height:34px;
+    padding:7px 10px;
+    font-size:12px;
+}
+#d2-weather-actions button {font-size:11px;padding:7px 10px;}
+@media(max-width:640px){
+    #mission-center{bottom:125px!important;}
+    #driver-mission-toast{bottom:164px;font-size:10px;}
+    #driver-mission-context{bottom:105px;font-size:10px;}
+    #btn-main-menu{min-height:34px;}
+}
+
+
+/* REV 1990s dashboard: restore only requested driving essentials.
+   Damage, felony and weather remain visible; city selection stays in MENU. */
+#hud-player-panel {
+    display:flex!important;
+    width:208px!important;
+    max-width:35vw;
+    gap:6px!important;
+    padding:10px!important;
+    background:rgba(9,15,23,.87);
+    border:1px solid rgba(130,143,147,.68);
+    border-radius:8px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 5px 18px #0008;
+}
+#hud-top-row {
+    justify-content:space-between!important;
+    align-items:flex-start!important;
+    width:100%;
+}
+#driver-hud-city-controls {display:none!important;}
+#driver-hud-weather-controls {
+    display:block!important;
+    margin-top:2px!important;
+    border-top:1px solid #374151;
+    padding-top:7px;
+}
+#driver-hud-weather-controls button {
+    min-width:0;
+    padding:5px 0!important;
+    font-size:9px!important;
+    border-radius:3px;
+    background:#18202b;
+}
+#driver-hud-weather-controls #weather-badge {color:#cbd5e1;}
+#hud-player-panel #btn-hud-more {display:none!important;}
+#hud-player-panel .driver-bar-bg {background:#090d13;}
+#hud-player-panel .driver-bar-bg > div {transition:width .12s linear;}
+/* Nostalgic molded plastic, creamy numerals, rust-orange needle. */
+.speedometer-90s {
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    width:218px;
+    flex:0 0 218px;
+    padding:8px 9px 6px;
+    border-radius:13px 13px 9px 9px;
+    background:linear-gradient(135deg,#31322e,#161b1b 45%,#2d2e29 92%);
+    color:#e2d4b6;
+    border:3px solid #58564a;
+    box-shadow:0 0 0 1px #080c0a,inset 0 2px 0 #6c685c,
+        inset 0 -3px 0 #111815,0 7px 25px #0009;
+    font-family:Tahoma,Arial,sans-serif;
+    pointer-events:none;
+    user-select:none;
+}
+.speedometer-90s-top {
+    display:flex;
+    justify-content:space-between;
+    gap:4px;
+    align-items:center;
+    min-height:18px;
+}
+.speedometer-90s-label {
+    font-size:9px;
+    font-weight:bold;
+    letter-spacing:.14em;
+    color:#d9c8a5;
+}
+.speedometer-90s-label small {
+    font-size:8px;
+    letter-spacing:.07em;
+    color:#ad9681;
+}
+.speedometer-siren {
+    font:bold 9px Tahoma,Arial,sans-serif;
+    color:#a1c9ee;
+    background:#213445;
+    border:1px solid #647c94;
+    padding:2px 4px;
+    border-radius:2px;
+    animation:retro-siren 1s ease-in-out infinite alternate;
+}
+@keyframes retro-siren {
+    from {box-shadow:0 0 2px #244465;}
+    to {box-shadow:0 0 8px #ef4545;}
+}
+.speedometer-90s-dial {
+    width:100%;
+    max-height:162px;
+    overflow:hidden;
+    background:radial-gradient(ellipse at 45% 30%,#232925 0%,#0b1010 88%);
+    border-radius:50% 50% 10% 10%;
+}
+.speedometer-90s-dial svg {
+    width:100%;
+    height:auto;
+    display:block;
+}
+.retro-speed-legend {
+    fill:#b4a890;
+    font:bold 6.7px Tahoma,Arial,sans-serif;
+    letter-spacing:.9px;
+}
+.retro-speed-brand {
+    fill:#818a80;
+    font:bold 5.4px Tahoma,Arial,sans-serif;
+    letter-spacing:1.7px;
+}
+.speedometer-90s-footer {
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-top:2px;
+    border-top:1px solid #5a554a;
+    padding:6px 3px 3px;
+    font-size:9px;
+}
+.retro-transmission {
+    white-space:nowrap;
+    color:#c5b69c;
+}
+.retro-transmission strong {
+    display:inline-block;
+    min-width:16px;
+    padding:1px 3px;
+    margin-left:3px;
+    text-align:center;
+    background:#151815;
+    border:1px solid #8f774b;
+    color:#ffc56c;
+    border-radius:2px;
+}
+.retro-tach {
+    display:flex;
+    flex:1;
+    gap:5px;
+    align-items:center;
+    font-size:9px;
+}
+.retro-tach-track {
+    background:#080c0b;
+    border:1px solid #787464;
+    height:7px;
+    flex:1;
+    overflow:hidden;
+}
+#rpm-bar {
+    height:100%;
+    background:linear-gradient(to right,#b2bb83 0%,#d9b36a 65%,#ae5a4a 100%);
+    transition:width .13s linear;
+}
+.speedometer-90s-car {
+    display:flex;
+    justify-content:space-between;
+    gap:4px;
+    margin-top:4px;
+    padding:2px 3px 0;
+    font-size:9px;
+    letter-spacing:.04em;
+    color:#baa992;
+    white-space:nowrap;
+    overflow:hidden;
+}
+#car-name-label {
+    overflow:hidden;
+    text-overflow:ellipsis;
+    max-width:152px;
+}
+.retro-speed-drift {
+    color:#f1ae63;
+    font-size:9px;
+    font-weight:bold;
+    white-space:nowrap;
+}
+@media(max-width:767px) {
+    #hud-player-panel {
+        width:min(53vw,190px)!important;
+        max-width:190px!important;
+        padding:7px!important;
+        gap:3px!important;
+        font-size:10px;
+    }
+    #hud-player-panel .driver-bar-bg {height:10px;}
+    #driver-hud-weather-controls {padding-top:3px;}
+    #driver-hud-weather-controls button {font-size:8px!important;padding:3px 0!important;}
+    .speedometer-90s {
+        width:106px;
+        flex:0 0 106px;
+        padding:4px;
+        border-width:2px;
+        border-radius:9px;
+    }
+    .speedometer-90s-label {font-size:6px;letter-spacing:0;}
+    .speedometer-90s-label small {font-size:6px;}
+    .speedometer-90s-dial {max-height:83px;}
+    .speedometer-90s-footer {padding:2px;gap:2px;font-size:7px;}
+    .retro-tach {font-size:6px;gap:1px;}
+    .retro-speed-drift {font-size:6px;}
+    .speedometer-90s-car {font-size:6px;margin-top:1px;}
+    .speedometer-siren {font-size:7px;padding:1px;}
+}
+@media(prefers-reduced-motion:reduce){
+    .speedometer-siren{animation:none;}
+    #rpm-bar{transition:none;}
+}
+
+/* Transição de etapas de Chicago: uma animação CSS, sem custo no loop 3D. */
+@keyframes driver-chicago-stage-enter {
+    from {opacity:.62;transform:translateY(-5px);}
+    to {opacity:1;transform:translateY(0);}
+}
+#chicago-mission-guidance.driver-stage-enter {
+    animation:driver-chicago-stage-enter .38s ease-out both;
+}
+@media (prefers-reduced-motion:reduce) {
+    #chicago-mission-guidance.driver-stage-enter {
+        animation:none;
+    }
+}
