@@ -281,11 +281,16 @@ class DriverChicagoOverhaul {
         this.buildRiverfront(city);
         this.buildRail(city);
         this.buildParks(city);
+        // Novo layout aproximado dos bairros do Driver 2
+        if(typeof DriverChicagoLayout !== 'undefined'){
+            DriverChicagoLayout.build(city);
+        }
         city.chicagoOverhaulStats={
-            version:2,districts:'loop/brick/industrial',
+            version:3,districts:'loop/brick/industrial + layout',
             parks:(city.chicagoParks||[]).length,
             riverSegments:16,railSupports:17,
-            addedColliders:0
+            addedColliders:0,
+            layout:true
         };
     }
 }
