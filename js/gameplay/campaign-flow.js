@@ -1,8 +1,12 @@
 /**
  * Fluxo contínuo de campanha Driver 2: entrada por marcador, progressão
  * em ordem e conclusão sem bloquear a cidade. Sem WebGL/DOM acoplado.
+ *
+ * Estrutura completa disponível em FullCampaignStructure
+ * (js/gameplay/full-campaign-structure.js).
  */
 class DriverCampaignFlow {
+    // Atual (implementado)
     static CHICAGO=[
         'story_tipoff','story_witness','story_train','story_drop',
         'story_safehouse','story_intruder','story_caine','story_leaving'
@@ -13,6 +17,12 @@ class DriverCampaignFlow {
     static RIO=[
         'story_rio_barge','story_rio_jericho','story_rio_helicopter'
     ];
+
+    // Para usar a lista completa, substitua pelos arrays de FullCampaignStructure
+    // static CHICAGO = FullCampaignStructure.CHICAGO;
+    // static HAVANA = FullCampaignStructure.HAVANA;
+    // etc.
+
     static next(chapter,completed){
         if(chapter==='vegas'||chapter==='rio'){
             for(const type of (chapter==='vegas'?this.VEGAS:this.RIO))
@@ -35,8 +45,6 @@ class DriverCampaignFlow {
             vegas:'LAS VEGAS',rio:'RIO DE JANEIRO'})[chapter]||chapter;
     }
     static isFailure(title){
-        // Algumas derrotas de Chicago eram tratadas como vitória:
-        // "O SUSPEITO VIU VOCÊ!" e "TREM PERDIDO" não coincidiam.
         return /FALH|ESGOTAD|DESTRUÍD[OA]|ESCAPOU|ATINGID[OA]|PONTE FECHOU|FIM DO SURVIVAL|TEMPO ESGOTADO|VIU VOCÊ|TREM PERDIDO|ALVO PERDIDO|VOCÊ FOI DESCOBERTO/i.test(String(title));
     }
     static summarize(title,description,failed,next){
